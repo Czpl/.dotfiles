@@ -109,7 +109,7 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   desc = 'Highlight when yanking (copying) text',
   group = vim.api.nvim_create_augroup('kickstart-highlight-yank', { clear = true }),
   callback = function()
-    vim.highlight.on_yank()
+    vim.hl.on_yank()
   end,
 })
 
@@ -369,7 +369,7 @@ require('lazy').setup({
           --
           -- When you move your cursor, the highlights will be cleared (the second autocommand).
           local client = vim.lsp.get_client_by_id(event.data.client_id)
-          if client and client.supports_method(vim.lsp.protocol.Methods.textDocument_documentHighlight) then
+          if client and client:supports_method(vim.lsp.protocol.Methods.textDocument_documentHighlight) then
             local highlight_augroup = vim.api.nvim_create_augroup('kickstart-lsp-highlight', { clear = false })
             vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
               buffer = event.buf,
@@ -396,7 +396,7 @@ require('lazy').setup({
           -- code, if the language server you are using supports them
           --
           -- This may be unwanted, since they displace some of your code
-          if client and client.supports_method(vim.lsp.protocol.Methods.textDocument_inlayHint) then
+          if client and client:supports_method(vim.lsp.protocol.Methods.textDocument_inlayHint) then
             map('<leader>th', function()
               vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled { bufnr = event.buf })
             end, '[T]oggle Inlay [H]ints')
@@ -471,11 +471,24 @@ require('lazy').setup({
         handlers = {
           function(server_name)
             local server = servers[server_name] or {}
-            -- This handles overriding only values explicitly passed
-            -- by the server configuration above. Useful when disabling
-            -- certain features of an LSP (for example, turning off formatting for ts_ls)
+
+            -- Merge capabilities (same behavior as before)
             server.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
-            require('lspconfig')[server_name].setup(server)
+
+            -- Get the base config for this server from nvim-lspconfig
+            local base = vim.lsp.config(server_name, server)
+
+            -- Automatically start the LSP when entering a buffer with the right filetype
+            vim.api.nvim_create_autocmd('FileType', {
+              pattern = base.filetypes or '*',
+              callback = function(args)
+                -- Start only if root_dir matches (avoids duplicate clients)
+                local buf = args.buf
+                base.root_dir = base.root_dir or vim.fs.root(buf, { '.git' })
+
+                vim.lsp.start(base)
+              end,
+            })
           end,
         },
       }
@@ -516,6 +529,7 @@ require('lazy').setup({
       -- end,
       formatters_by_ft = {
         lua = { 'stylua' },
+        javascript = { 'eslint_d' },
         -- Conform can also run multiple formatters sequentially
         -- python = { "isort", "black" },
         --
@@ -764,69 +778,69 @@ require('lazy').setup({
 -- vim: ts=2 sts=2 sw=2 et
 
 vim.cmd 'language en_US'
-require('lspconfig').intelephense.setup {
-  settings = {
-    intelephense = {
-      stubs = {
-        'apache',
-        'bcmath',
-        'bz2',
-        'calendar',
-        'core', -- Required for built-in PHP functions
-        'ctype',
-        'curl',
-        'date',
-        'dom',
-        'fileinfo',
-        'filter',
-        'ftp',
-        'gd',
-        'gettext',
-        'hash',
-        'iconv',
-        'imap',
-        'intl',
-        'json',
-        'libxml',
-        'mbstring',
-        'mcrypt',
-        'mysql',
-        'mysqli',
-        'password',
-        'pcntl',
-        'pcre',
-        'PDO',
-        'pdo_mysql',
-        'Phar',
-        'posix',
-        'readline',
-        'Reflection',
-        'session',
-        'SimpleXML',
-        'soap',
-        'sockets',
-        'sodium',
-        'SPL',
-        'standard',
-        'superglobals',
-        'sysvsem',
-        'sysvshm',
-        'tokenizer',
-        'xml',
-        'xdebug',
-        'zip',
-        'zlib',
-        'wordpress',
-        'wordpress-globals',
-        'woocommerce',
-        'wp-cli',
-        'wp-hooks',
-        'wp-i18n',
-      },
-      files = {
-        maxSize = 5000000, -- Increase if necessary
-      },
-    },
-  },
-}
+-- require('lspconfig').intelephense.setup {
+--   settings = {
+--     intelephense = {
+--       stubs = {
+--         'apache',
+--         'bcmath',
+--         'bz2',
+--         'calendar',
+--         'core', -- Required for built-in PHP functions
+--         'ctype',
+--         'curl',
+--         'date',
+--         'dom',
+--         'fileinfo',
+--         'filter',
+--         'ftp',
+--         'gd',
+--         'gettext',
+--         'hash',
+--         'iconv',
+--         'imap',
+--         'intl',
+--         'json',
+--         'libxml',
+--         'mbstring',
+--         'mcrypt',
+--         'mysql',
+--         'mysqli',
+--         'password',
+--         'pcntl',
+--         'pcre',
+--         'PDO',
+--         'pdo_mysql',
+--         'Phar',
+--         'posix',
+--         'readline',
+--         'Reflection',
+--         'session',
+--         'SimpleXML',
+--         'soap',
+--         'sockets',
+--         'sodium',
+--         'SPL',
+--         'standard',
+--         'superglobals',
+--         'sysvsem',
+--         'sysvshm',
+--         'tokenizer',
+--         'xml',
+--         'xdebug',
+--         'zip',
+--         'zlib',
+--         'wordpress',
+--         'wordpress-globals',
+--         'woocommerce',
+--         'wp-cli',
+--         'wp-hooks',
+--         'wp-i18n',
+--       },
+--       files = {
+--         maxSize = 5000000, -- Increase if necessary
+--       },
+--     },
+--   },
+-- }
 require 'custom.keybinds'
